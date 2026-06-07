@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>For Barsa 🌅</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Raleway:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:linear-gradient(180deg,#1a0a00 0%,#3d1500 20%,#7a2d00 40%,#c45200 60%,#f5822a 80%,#ffb347 100%);min-height:100vh;overflow:hidden;font-family:'Raleway',sans-serif;color:#fff5e0;cursor:none}
+    canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1;pointer-events:none}
+    .cur{position:fixed;z-index:9999;width:16px;height:16px;border-radius:50%;background:rgba(255,180,50,.9);pointer-events:none;transform:translate(-50%,-50%);box-shadow:0 0 8px rgba(255,150,30,.8)}
+    .scene{position:relative;z-index:10;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;gap:clamp(12px,2.5vh,24px)}
+    .title{font-family:'Dancing Script',cursive;font-size:clamp(3rem,11vw,7rem);font-weight:700;color:#ffedbb;text-shadow:0 0 40px rgba(255,160,30,.6),0 0 80px rgba(255,100,0,.3);opacity:0;animation:rise 2s ease forwards 2s}
+    .sub{font-size:clamp(.7rem,2vw,.95rem);letter-spacing:.4em;text-transform:uppercase;color:rgba(255,220,150,.5);opacity:0;animation:fup 1s ease forwards 4.3s}
+    .hw{opacity:0;animation:fup .8s ease forwards 5.1s}
+    .hi{font-size:clamp(2rem,6vw,3.2rem);display:inline-block;animation:sunpulse 2s ease-in-out infinite 5.1s;filter:drop-shadow(0 0 16px rgba(255,180,0,.8))}
+    .mw{max-width:min(560px,90vw);opacity:0;animation:fup 1.2s ease forwards 6.1s}
+    .msg{font-size:clamp(.86rem,2.3vw,1.08rem);font-weight:300;line-height:2;color:rgba(255,240,200,.85)}
+    .msg em{color:#ffcc60;font-style:italic}
+    .msg strong{color:#ffd88a}
+    .btn{opacity:0;animation:fup .8s ease forwards 8.9s;background:transparent;border:1.5px solid rgba(255,180,50,.5);color:#fff5e0;font-family:'Raleway',sans-serif;font-size:clamp(.78rem,2vw,.9rem);font-weight:500;letter-spacing:.22em;text-transform:uppercase;padding:13px 38px;border-radius:50px;cursor:pointer;backdrop-filter:blur(8px);transition:all .3s}
+    .btn:hover{border-color:rgba(255,180,50,.9);box-shadow:0 0 24px rgba(255,150,30,.5);transform:translateY(-2px)}
+    .ds{position:fixed;bottom:16px;right:18px;font-size:.68rem;letter-spacing:.15em;color:rgba(255,200,100,.3);z-index:20;opacity:0;animation:fi 1s ease forwards 11s}
+    @keyframes rise{from{opacity:0;transform:translateY(30px);filter:blur(16px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+    @keyframes fup{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fi{to{opacity:1}}
+    @keyframes sunpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+  </style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="cur" id="cur"></div>
+<div class="scene">
+  <div class="title">Barsa</div>
+  <div class="sub">every morning, you</div>
+  <div class="hw"><span class="hi">🌅</span></div>
+  <div class="mw"><p class="msg">
+    Every morning the sun rises<br>
+    and <em>the world gets a second chance</em> —<br>
+    warm, golden, full of hope.<br><br>
+    That's what you feel like.<br>
+    <strong>Like a sunrise I never get tired of.</strong><br><br>
+    Every day is better just because<br>
+    you're in it, <em>Barsa.</em>
+  </p></div>
+  <button class="btn" id="btn" onclick="sendLove()">🌅 Brighten My Day 🌅</button>
+</div>
+<div class="ds">June 07 · 2026</div>
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+let W=cv.width=window.innerWidth,H=cv.height=window.innerHeight;
+let t=0;
+const motes=Array.from({length:60},()=>{return{x:Math.random()*W,y:H*.4+Math.random()*H*.6,vx:(Math.random()-.5)*.4,vy:-(Math.random()*.6+.2),op:Math.random()*.5+.3,r:Math.random()*3+1,decay:.003+Math.random()*.003}});
+function loop(ts){t=ts/1000;ctx.clearRect(0,0,W,H);
+  const sunY=H*.55+Math.sin(t*.2)*H*.02;
+  const sunG=ctx.createRadialGradient(W*.5,sunY,0,W*.5,sunY,W*.4);
+  sunG.addColorStop(0,'rgba(255,220,80,.18)');sunG.addColorStop(.4,'rgba(255,140,20,.06)');sunG.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=sunG;ctx.fillRect(0,0,W,H);
+  motes.forEach(m=>{m.x+=m.vx;m.y+=m.vy;m.op-=m.decay;if(m.op<=0){m.x=Math.random()*W;m.y=H+10;m.op=Math.random()*.5+.3;m.vy=-(Math.random()*.6+.2)}ctx.beginPath();ctx.arc(m.x,m.y,m.r,0,Math.PI*2);ctx.fillStyle=`rgba(255,200,80,${m.op})`;ctx.fill()});
+  requestAnimationFrame(loop)}
+loop(0);
+const cur=document.getElementById('cur');
+document.addEventListener('mousemove',e=>{cur.style.left=e.clientX+'px';cur.style.top=e.clientY+'px'});
+function sendLove(){const btn=document.getElementById('btn');btn.textContent='☀️ You Are My Sunshine ☀️';setTimeout(()=>btn.textContent='🌅 Brighten My Day 🌅',3000)}
+window.addEventListener('resize',()=>{W=cv.width=window.innerWidth;H=cv.height=window.innerHeight});
+</script>
+</body>
+</html>
