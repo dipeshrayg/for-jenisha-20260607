@@ -1,0 +1,57 @@
+name: Definitely Illegal — Auto Video Generator
+
+on:
+  schedule:
+    # Runs every Saturday at 20:00 UTC — prime time for crimes
+    - cron: "0 20 * * 6"
+  workflow_dispatch:
+    inputs:
+      episode:
+        description: "Episode number to generate (leave blank for next ungenerated)"
+        required: false
+        type: number
+
+jobs:
+  generate-video:
+    name: Generate Episode
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r workflow/requirements.txt
+
+      - name: Generate episode
+        env:
+          HIGGSFIELD_API_KEY: ${{ secrets.HIGGSFIELD_API_KEY }}
+        run: |
+          if [ -n "${{ github.event.inputs.episode }}" ]; then
+            python workflow/generate.py --episode ${{ github.event.inputs.episode }}
+          else
+            python workflow/generate.py
+          fi
+
+      - name: Upload generated assets
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: episode-assets-${{ github.run_number }}
+          path: workflow/output/
+          retention-days: 30
+
+      - name: Commit generated.json status file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add workflow/generated.json || true
+          git diff --staged --quiet || git commit -m "chore: mark generated episode [skip ci]"
+          git push || true
