@@ -99,34 +99,83 @@ def centered_text(draw, text, y, font, color=WHITE, shadow=True):
         draw.text((x + 3, y + 3), text, font=font, fill=(0, 0, 0))
     draw.text((x, y), text, font=font, fill=color)
 
-# ── Image generation (Pollinations.ai) ────────────────────────────────────────
+# ── Image generation (Pollinations.ai free models + PIL fallback) ─────────────
+
+def _pollinations_url(prompt: str, model: str, seed: int) -> str:
+    encoded = requests.utils.quote(prompt)
+    return (
+        f"https://image.pollinations.ai/prompt/{encoded}"
+        f"?width={W}&height={H}&model={model}&seed={seed}"
+    )
+
+def _pill_scene_image(episode: dict, out_path: Path) -> Path:
+    """Fallback: generate a stylised PIL scene card when all APIs fail."""
+    img  = Image.new("RGB", (W, H), (30, 30, 50))
+    draw = ImageDraw.Draw(img)
+
+    # Gradient-ish background bands
+    for i in range(0, H, 4):
+        shade = int(30 + 60 * (i / H))
+        draw.line([(0, i), (W, i)], fill=(shade, shade // 2, 80))
+
+    draw.rectangle([(0, 0), (W, 14)], fill=YELLOW)
+    draw.rectangle([(0, H - 14), (W, H)], fill=YELLOW)
+
+    f80 = get_font(80)
+    f50 = get_font(50)
+    f36 = get_font(36)
+
+    centered_text(draw, "DEFINITELY",       H // 6,       f80, YELLOW)
+    centered_text(draw, "ILLEGAL",          H // 6 + 100, f80, YELLOW)
+    centered_text(draw, f"Episode {episode['id']}", H // 3 + 20, f36, GREY, shadow=False)
+
+    y = H // 2 - 40
+    for line in textwrap.wrap(episode["title"], width=20):
+        centered_text(draw, line, y, f50, WHITE)
+        y += 70
+
+    y += 30
+    for line in textwrap.wrap(episode["tagline"], width=38):
+        centered_text(draw, line, y, f36, GREY, shadow=False)
+        y += 52
+
+    img.save(str(out_path), "PNG")
+    print(f"  [img] ✓ PIL fallback scene card generated")
+    return out_path
 
 def fetch_scene_image(episode: dict, out_path: Path) -> Path:
-    print("  [img] Calling Pollinations.ai…")
-    prompt  = (
+    print("  [img] Fetching scene image…")
+    prompt = (
         episode["scene_prompt"]
         + ", vibrant cartoon illustration, flat 2D art style, funny, colourful, "
           "clean lines, comic book look"
     )
-    encoded = requests.utils.quote(prompt)
-    url = (
-        f"https://image.pollinations.ai/prompt/{encoded}"
-        f"?width={W}&height={H}&model=flux&nologo=true&seed={episode['id'] * 7}"
-    )
-    for attempt in range(4):
-        try:
-            r = requests.get(url, timeout=120)
-            r.raise_for_status()
-            out_path.write_bytes(r.content)
-            img = Image.open(out_path)
-            if img.size[0] > 100:
-                print(f"  [img] ✓ {img.size[0]}×{img.size[1]} px")
-                return out_path
-        except Exception as e:
-            wait = 2 ** attempt
-            print(f"  [img] attempt {attempt+1} failed ({e}), retry in {wait}s…")
-            time.sleep(wait)
-    raise RuntimeError("Pollinations.ai image fetch failed after 4 attempts")
+    seed = episode["id"] * 7
+
+    # Try free Pollinations models in order; fall back to PIL if all fail
+    free_models = ["turbo", "flux-schnell", "stable-diffusion"]
+    for model in free_models:
+        url = _pollinations_url(prompt, model, seed)
+        for attempt in range(3):
+            try:
+                print(f"  [img] trying {model} (attempt {attempt + 1})…")
+                r = requests.get(url, timeout=90)
+                if r.status_code == 402:
+                    print(f"  [img] {model} requires payment, skipping…")
+                    break
+                r.raise_for_status()
+                out_path.write_bytes(r.content)
+                img = Image.open(out_path)
+                if img.size[0] > 100:
+                    print(f"  [img] ✓ {img.size[0]}×{img.size[1]} px via {model}")
+                    return out_path
+            except Exception as e:
+                wait = 3 * (attempt + 1)
+                print(f"  [img] attempt {attempt + 1} failed ({e}), retry in {wait}s…")
+                time.sleep(wait)
+
+    print("  [img] All API models failed — using PIL scene card as fallback")
+    return _pill_scene_image(episode, out_path)
 
 # ── Voiceover (gTTS) ──────────────────────────────────────────────────────────
 
