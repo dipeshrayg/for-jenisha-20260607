@@ -104,8 +104,10 @@ class Figure:
     Pass talk=True/False to force the mouth chatter; defaults to on for talky actions.
     """
 
-    def __init__(self, cx, cy_feet, height=200, color=WHITE, lw=6):
-        self.cx, self.cy, self.h, self.color, self.lw = cx, cy_feet, height, color, lw
+    def __init__(self, cx, cy_feet, height=200, color=WHITE, lw=None):
+        self.cx, self.cy, self.h, self.color = cx, cy_feet, height, color
+        # Bold line weight that scales with the figure (reference uses thick clean lines)
+        self.lw = lw if lw is not None else max(4, int(height * 0.045))
 
     def draw(self, draw, t, action="idle", flip=False, talk=None):
         cx, cy, h, c, lw = self.cx, self.cy, self.h, self.color, self.lw
@@ -193,44 +195,60 @@ class Figure:
         draw.ellipse([cx-head_r, head_cy-head_r, cx+head_r, head_cy+head_r],
                      outline=c, width=lw)
 
-        # Eyes — blink on a slow cycle
-        ey, er = head_cy - head_r*0.18, max(2, lw//2)
-        blink = math.sin(t * 8 * math.pi) > 0.92
-        if blink:
-            draw.line([(cx-head_r*.4-er, ey), (cx-head_r*.4+er, ey)], fill=c, width=lw)
-            draw.line([(cx+head_r*.4-er, ey), (cx+head_r*.4+er, ey)], fill=c, width=lw)
-        else:
-            draw.ellipse([cx-head_r*.4-er, ey-er, cx-head_r*.4+er, ey+er], fill=c)
-            draw.ellipse([cx+head_r*.4-er, ey-er, cx+head_r*.4+er, ey+er], fill=c)
+        hand_fill = WHITE if c != WHITE else (245, 245, 245)
+        hr = max(3, int(lw * 1.5))   # hand / foot blob radius
 
-        # Mouth — chatter so the figure looks like it's narrating
+        # Eyes — big friendly dots that blink
+        eye_dx, eye_dy = head_r*0.42, head_r*0.10
+        er = max(2, int(lw*0.75))
+        blink = math.sin(t * 8 * math.pi) > 0.93
+        for sx in (-1, 1):
+            ex0 = cx + sx*eye_dx
+            if blink:
+                draw.line([(ex0-er, head_cy-eye_dy), (ex0+er, head_cy-eye_dy)],
+                          fill=c, width=max(2, lw//2))
+            else:
+                draw.ellipse([ex0-er, head_cy-eye_dy-er, ex0+er, head_cy-eye_dy+er], fill=c)
+
+        # Eyebrows — a little attitude (the "frank" look)
+        brow_y = head_cy - head_r*0.42
+        for sx in (-1, 1):
+            draw.line([(cx+sx*eye_dx-er*1.6, brow_y+er*0.8),
+                       (cx+sx*eye_dx+er*1.6, brow_y)], fill=c, width=max(2, lw//2))
+
+        # Mouth — smiles, and opens to "talk" while narrating
         if talk is None:
             talk = action in TALKY
-        my = head_cy + head_r*0.45
-        mw = head_r*0.5
+        my = head_cy + head_r*0.42
         if talk and math.sin(t * 34 * math.pi) > 0:
-            draw.ellipse([cx-mw, my-mw*0.6, cx+mw, my+mw*0.6], fill=c)  # open
+            draw.ellipse([cx-head_r*0.30, my-head_r*0.12,
+                          cx+head_r*0.30, my+head_r*0.32], fill=c)  # open mouth
         else:
-            draw.line([(cx-mw, my), (cx+mw, my)], fill=c, width=max(2, lw//2))  # closed
+            draw.arc([cx-head_r*0.42, my-head_r*0.45, cx+head_r*0.42, my+head_r*0.35],
+                     20, 160, fill=c, width=max(2, lw//2))            # smile
 
         # Body
         draw.line([(int(cx), int(neck_y)), (int(cx), int(hip_y))], fill=c, width=lw)
 
-        # Arms (two segments so elbows bend — reads as proper limbs)
+        # Arms (two segments so elbows bend) ending in white blob hands
         alen = h * 0.30
         for angle in (al, ar):
             elbow = polar(cx, shldr_y, alen*0.55, angle)
             hand  = polar(elbow[0], elbow[1], alen*0.55, angle*0.7)
             draw.line([(int(cx), int(shldr_y)), (int(elbow[0]), int(elbow[1]))], fill=c, width=lw)
             draw.line([(int(elbow[0]), int(elbow[1])), (int(hand[0]), int(hand[1]))], fill=c, width=lw)
+            draw.ellipse([hand[0]-hr, hand[1]-hr, hand[0]+hr, hand[1]+hr],
+                         fill=hand_fill, outline=c, width=max(2, lw//2))
 
-        # Legs (two segments: thigh + shin)
+        # Legs (two segments) ending in white blob feet
         llen = h * 0.47
         for ang, ox in ((ll, -h*0.04), (lr, h*0.04)):
             knee = polar(cx+ox, hip_y, llen*0.55, ang)
             foot = polar(knee[0], knee[1], llen*0.50, ang*0.5)
             draw.line([(int(cx+ox), int(hip_y)), (int(knee[0]), int(knee[1]))], fill=c, width=lw)
             draw.line([(int(knee[0]), int(knee[1])), (int(foot[0]), int(foot[1]))], fill=c, width=lw)
+            draw.ellipse([foot[0]-hr*1.2, foot[1]-hr*0.7, foot[0]+hr*1.2, foot[1]+hr*0.7],
+                         fill=hand_fill, outline=c, width=max(2, lw//2))
 
 # ── Props & scene helpers ──────────────────────────────────────────────────────
 
@@ -835,27 +853,29 @@ def assemble_video(episode, voiceover_path, music_path, out_path):
         mu = mu.fx(afx.audio_loop, duration=total_dur)
     mu = mu.subclip(0, total_dur)
 
-    words      = episode["narration"].split()
-    n_chunks   = max(4, len(words)//14)
-    chunk_size = max(1, len(words)//n_chunks)
-    chunks     = [" ".join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
-    chunk_dur  = vdur / len(chunks)
-    sub_font   = get_font(42)
-    scene_r    = get_renderer(episode)
+    # Word-by-word karaoke captions (1-2 words at a time), TikTok style
+    words     = episode["narration"].split()
+    group     = 2
+    chunks    = [" ".join(words[i:i+group]) for i in range(0, len(words), group)] or [""]
+    chunk_dur = vdur / len(chunks)
+    cap_font  = get_font(104)
+    stroke    = 9
+    scene_r   = get_renderer(episode)
 
     def render_frame(t):
         frame = Image.fromarray(scene_r(t / vdur))
         d = ImageDraw.Draw(frame, "RGBA")
-        d.rectangle([(0,H-215),(W,H)], fill=(0,0,0,155))
-        idx   = min(int(t/chunk_dur), len(chunks)-1)
-        lines = textwrap.wrap(chunks[idx], width=32)
-        y = H - 200
-        for line in lines:
-            bb = d.textbbox((0,0), line, font=sub_font)
-            x  = (W - (bb[2]-bb[0])) // 2
-            d.text((x+2,y+2), line, font=sub_font, fill=(0,0,0,220))
-            d.text((x,  y),   line, font=sub_font, fill=(255,255,255,255))
-            y += 56
+        idx  = min(int(t/chunk_dur), len(chunks)-1)
+        word = chunks[idx].upper()
+        # subtle "pop" scale at the start of each word for liveliness
+        local = (t - idx*chunk_dur) / chunk_dur
+        scale = 1.0 + 0.12*max(0.0, 1 - local*6)
+        fnt   = get_font(int(104*scale))
+        bb = d.textbbox((0,0), word, font=fnt, stroke_width=stroke)
+        x  = (W - (bb[2]-bb[0])) // 2
+        y  = int(H*0.66)
+        # thick black outline + bright yellow fill = the reference caption look
+        d.text((x, y), word, font=fnt, fill=YELLOW, stroke_width=stroke, stroke_fill=BLACK)
         return np.array(frame.convert("RGB"))
 
     title_clip = ImageClip(render_title_frame(episode), duration=3).set_fps(FPS)
