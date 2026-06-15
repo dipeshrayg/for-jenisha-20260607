@@ -95,75 +95,93 @@ def fill_gradient(img, top_color, bot_color):
 
 # ── Stick figure ───────────────────────────────────────────────────────────────
 
-class Figure:
-    """Animated stick figure. Actions: idle walk wave cheer pour point hands_up type confused."""
+TALKY = {"explain", "wave", "cheer", "pour", "point", "hands_up", "type", "confused"}
 
-    def __init__(self, cx, cy_feet, height=200, color=WHITE, lw=5):
+class Figure:
+    """Lively animated stick figure with moving mouth, blinking eyes and big gestures.
+
+    Actions: idle walk wave cheer pour point hands_up type confused sneak explain.
+    Pass talk=True/False to force the mouth chatter; defaults to on for talky actions.
+    """
+
+    def __init__(self, cx, cy_feet, height=200, color=WHITE, lw=6):
         self.cx, self.cy, self.h, self.color, self.lw = cx, cy_feet, height, color, lw
 
-    def draw(self, draw, t, action="idle", flip=False):
+    def draw(self, draw, t, action="idle", flip=False, talk=None):
         cx, cy, h, c, lw = self.cx, self.cy, self.h, self.color, self.lw
+        sway = 0.0  # horizontal body shift for liveliness
 
         # --- joint angles (0 = hanging straight down, positive = swings right) ---
         if action == "walk":
             p = t * 6 * math.pi
-            ll, lr = math.sin(p)*35, -math.sin(p)*35
-            al, ar = -math.sin(p)*40,  math.sin(p)*40
-            bob = abs(math.sin(p)) * h * 0.02
-        elif action == "wave":
-            p = t * 4 * math.pi
-            ll, lr, al, ar = 5, -5, math.sin(p)*50 - 70, 30
-            bob = 0
-        elif action == "cheer":
-            p = t * 4 * math.pi
-            ll, lr = math.sin(p)*15, -math.sin(p)*15
-            al = math.sin(p)*30 - 100
-            ar = -math.sin(p)*30 + 100
-            bob = abs(math.sin(p)) * h * 0.03
-        elif action == "pour":
-            p = t * 2 * math.pi
-            ll, lr = -5, 5
-            al = -70 + math.sin(p)*10
-            ar = math.sin(p)*15 + 10
-            bob = 0
-        elif action == "point":
-            p = t * 2 * math.pi
-            ll, lr, al = 0, 0, -30
-            ar = -55 + math.sin(p)*10
-            bob = 0
-        elif action == "hands_up":
-            p = t * 3 * math.pi
-            ll, lr = 0, 0
-            al = -90 + math.sin(p)*15
-            ar = 90 - math.sin(p)*15
-            bob = 0
-        elif action == "type":
-            p = t * 8 * math.pi
-            ll, lr = 5, -5
-            al = -40 + math.sin(p)*20
-            ar = 40 - math.sin(p)*20
-            bob = math.sin(p*0.5) * h * 0.01
-        elif action == "confused":
-            p = t * 3 * math.pi
-            ll, lr = 10, -10
-            al, ar = -20, -65 + math.sin(p)*20
-            bob = 0
-        elif action == "sneak":
+            ll, lr = math.sin(p)*48, -math.sin(p)*48
+            al, ar = -math.sin(p)*52,  math.sin(p)*52
+            bob = abs(math.sin(p)) * h * 0.04
+        elif action == "explain":  # frank narrator: gesturing, weight-shifting, alive
             p = t * 5 * math.pi
-            ll, lr = math.sin(p)*25, -math.sin(p)*25
-            al, ar = math.sin(p)*20 - 40, -math.sin(p)*20 + 40
+            ll, lr = math.sin(p*0.5)*6, -math.sin(p*0.5)*6
+            al = -45 + math.sin(p)*40
+            ar =  45 - math.sin(p + 1.3)*40
+            bob  = abs(math.sin(p*0.5)) * h * 0.02
+            sway = math.sin(t * 4 * math.pi) * h * 0.04
+        elif action == "wave":
+            p = t * 6 * math.pi
+            ll, lr, al, ar = 6, -6, math.sin(p)*65 - 75, 35
+            bob = abs(math.sin(p*0.5)) * h * 0.015
+        elif action == "cheer":
+            p = t * 6 * math.pi
+            ll, lr = math.sin(p)*20, -math.sin(p)*20
+            al = math.sin(p)*35 - 110
+            ar = -math.sin(p)*35 + 110
+            bob = abs(math.sin(p)) * h * 0.06  # hopping
+        elif action == "pour":
+            p = t * 3 * math.pi
+            ll, lr = -6, 6
+            al = -78 + math.sin(p)*14
+            ar = math.sin(p)*22 + 12
+            bob = math.sin(p) * h * 0.01
+        elif action == "point":
+            p = t * 4 * math.pi
+            ll, lr, al = 0, 0, -32 + math.sin(p*0.5)*12
+            ar = -60 + math.sin(p)*16
+            bob = math.sin(p*0.5) * h * 0.012
+            sway = math.sin(t * 3 * math.pi) * h * 0.02
+        elif action == "hands_up":
+            p = t * 5 * math.pi
+            ll, lr = math.sin(p*0.5)*8, -math.sin(p*0.5)*8
+            al = -100 + math.sin(p)*22
+            ar =  100 - math.sin(p)*22
+            bob = abs(math.sin(p*0.5)) * h * 0.02
+        elif action == "type":
+            p = t * 12 * math.pi
+            ll, lr = 6, -6
+            al = -42 + math.sin(p)*26
+            ar =  42 - math.sin(p)*26
+            bob = math.sin(p*0.5) * h * 0.015
+        elif action == "confused":
+            p = t * 4 * math.pi
+            ll, lr = 12, -12
+            al, ar = -22 + math.sin(p*0.5)*10, -68 + math.sin(p)*26
+            bob = math.sin(p*0.5) * h * 0.01
+            sway = math.sin(t * 2.5 * math.pi) * h * 0.03
+        elif action == "sneak":
+            p = t * 6 * math.pi
+            ll, lr = math.sin(p)*32, -math.sin(p)*32
+            al, ar = math.sin(p)*26 - 45, -math.sin(p)*26 + 45
             bob = 0
             cy = cy - h * 0.08  # crouch
         else:  # idle / breathe
             p = t * 2 * math.pi
             ll, lr = 0, 0
-            al = math.sin(p)*8 - 25
-            ar = -math.sin(p)*8 + 25
-            bob = math.sin(p) * h * 0.01
+            al = math.sin(p)*10 - 25
+            ar = -math.sin(p)*10 + 25
+            bob = math.sin(p) * h * 0.015
 
         if flip:
             ll, lr, al, ar = -lr, -ll, -ar, -al
+            sway = -sway
 
+        cx = cx + sway
         cy_adj = cy - bob
         head_r   = h * 0.13
         head_cy  = cy_adj - h + head_r
@@ -174,18 +192,37 @@ class Figure:
         # Head
         draw.ellipse([cx-head_r, head_cy-head_r, cx+head_r, head_cy+head_r],
                      outline=c, width=lw)
-        # Eyes
-        ey, er = head_cy - head_r*0.1, max(2, lw//2)
-        draw.ellipse([cx-head_r*.4-er, ey-er, cx-head_r*.4+er, ey+er], fill=c)
-        draw.ellipse([cx+head_r*.4-er, ey-er, cx+head_r*.4+er, ey+er], fill=c)
+
+        # Eyes — blink on a slow cycle
+        ey, er = head_cy - head_r*0.18, max(2, lw//2)
+        blink = math.sin(t * 8 * math.pi) > 0.92
+        if blink:
+            draw.line([(cx-head_r*.4-er, ey), (cx-head_r*.4+er, ey)], fill=c, width=lw)
+            draw.line([(cx+head_r*.4-er, ey), (cx+head_r*.4+er, ey)], fill=c, width=lw)
+        else:
+            draw.ellipse([cx-head_r*.4-er, ey-er, cx-head_r*.4+er, ey+er], fill=c)
+            draw.ellipse([cx+head_r*.4-er, ey-er, cx+head_r*.4+er, ey+er], fill=c)
+
+        # Mouth — chatter so the figure looks like it's narrating
+        if talk is None:
+            talk = action in TALKY
+        my = head_cy + head_r*0.45
+        mw = head_r*0.5
+        if talk and math.sin(t * 34 * math.pi) > 0:
+            draw.ellipse([cx-mw, my-mw*0.6, cx+mw, my+mw*0.6], fill=c)  # open
+        else:
+            draw.line([(cx-mw, my), (cx+mw, my)], fill=c, width=max(2, lw//2))  # closed
+
         # Body
         draw.line([(int(cx), int(neck_y)), (int(cx), int(hip_y))], fill=c, width=lw)
 
-        # Arms
+        # Arms (two segments so elbows bend — reads as proper limbs)
         alen = h * 0.30
         for angle in (al, ar):
-            ex, ey2 = polar(cx, shldr_y, alen, angle)
-            draw.line([(int(cx), int(shldr_y)), (int(ex), int(ey2))], fill=c, width=lw)
+            elbow = polar(cx, shldr_y, alen*0.55, angle)
+            hand  = polar(elbow[0], elbow[1], alen*0.55, angle*0.7)
+            draw.line([(int(cx), int(shldr_y)), (int(elbow[0]), int(elbow[1]))], fill=c, width=lw)
+            draw.line([(int(elbow[0]), int(elbow[1])), (int(hand[0]), int(hand[1]))], fill=c, width=lw)
 
         # Legs (two segments: thigh + shin)
         llen = h * 0.47
@@ -283,8 +320,8 @@ def ep01(t):
     for tx in [80, 880, 1010]:
         draw_tree(d, tx, gy)
 
-    # Criminal on mountain top
-    fig = Figure(W//2, H//4+30, height=230)
+    # Criminal on mountain top (dark so it stands out against the white snowcap)
+    fig = Figure(W//2, H//4+30, height=230, color=DARK)
     fig.draw(d, t, action="pour")
 
     # Jar being held out
@@ -738,10 +775,28 @@ def render_end_frame():
 
 # ── Audio ──────────────────────────────────────────────────────────────────────
 
+# Frank, casual American male narrator. Slight speed-up + lower pitch = blunt delivery.
+MALE_VOICE = os.environ.get("VOICE", "en-US-GuyNeural")
+VOICE_RATE  = "+10%"
+VOICE_PITCH = "-3Hz"
+
+def _edge_tts(text, out_path):
+    """Natural neural male voice via Microsoft Edge TTS (free, no API key)."""
+    import asyncio, edge_tts
+    async def _run():
+        comm = edge_tts.Communicate(text, MALE_VOICE, rate=VOICE_RATE, pitch=VOICE_PITCH)
+        await comm.save(str(out_path))
+    asyncio.run(_run())
+
 def generate_voiceover(text, out_path):
-    print("  [tts] Generating voiceover…")
-    gTTS(text=text, lang="en", slow=False).save(str(out_path))
-    print("  [tts] ✓ narration.mp3")
+    print(f"  [tts] Generating voiceover ({MALE_VOICE})…")
+    try:
+        _edge_tts(text, out_path)
+        print("  [tts] ✓ narration.mp3 (edge-tts male voice)")
+    except Exception as e:
+        print(f"  [tts] edge-tts failed ({e}); falling back to gTTS")
+        gTTS(text=text, lang="en", tld="com", slow=False).save(str(out_path))
+        print("  [tts] ✓ narration.mp3 (gTTS fallback)")
     return out_path
 
 def generate_tone_music(duration, out_path):
